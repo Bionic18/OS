@@ -124,6 +124,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->priority =10; //set the default priority
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -679,5 +680,28 @@ procdump(void)
       state = "???";
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
+  }
+}
+
+int getpinfo(struct pstat* i_node){
+  struct proc* p;
+  int counter=0;
+  for(p=proc;p<&proc[NPROC];p++){
+    i_node->pid[counter] = p->pid;
+    i_node->priority[counter] = p->priority;
+    i_node->state[counter] = p->state;
+    safestrcpy(i_node->name[counter],p->name,16);
+    for(int i=0;i<16;i++){
+      printf("%s",i_node->name[i][counter]);
+    }
+    printf("\n");
+    i_node->parent[counter] = p->parent;
+    i_node->size[counter] =p->sz;
+    counter++;
+  }
+  if(counter<NPROC){
+    return 0;
+  }else{
+    return -1;
   }
 }

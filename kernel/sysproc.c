@@ -89,3 +89,15 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64 sys_setpriority(void){
+  uint64 temp;
+  argaddr(0, &temp);
+  return setpriority(temp);
+}
+
+uint sys_getpinfo(void){
+  struct pstat* input;
+  argaddr(0,(uint64*)&input); //hodge-podge. we'll see if it works lol
+  return getpinfo(input);
+}

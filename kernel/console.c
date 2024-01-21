@@ -8,8 +8,6 @@
 //   control-d -- end of file
 //   control-p -- print process list
 //
-//test
-
 #include <stdarg.h>
 
 #include "types.h"
