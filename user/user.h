@@ -1,5 +1,16 @@
+#define NPROC 64
+
+enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+
 struct stat;
-struct pstat;
+struct pstat {
+  char name[NPROC][16];
+  int pid[NPROC];
+  uint64 priority[NPROC];
+  uint64 size[NPROC];
+  enum procstate state[NPROC];
+  int ppid[NPROC];
+};
 
 // system calls
 int fork(void);
@@ -24,7 +35,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int setpriority(int);
-int getpifo(struct pstat*);
+int getpinfo(struct pstat*);
 
 // ulib.c
 int stat(const char*, struct stat*);

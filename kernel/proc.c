@@ -445,30 +445,39 @@ wait(uint64 addr)
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p=proc;
   struct cpu *c = mycpu();
+  uint64 cand_priority =21;
   
   c->proc = 0;
   for(;;){
+    cand_priority=21;
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
+      if(p->state == RUNNABLE && p->priority < cand_priority) {
+        cand_priority = p->priority;
+      }
+      release(&p->lock);
+    }
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state == RUNNABLE && p->priority == cand_priority) {
+        // Switch to chosen process. It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
-
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
-      }
-      release(&p->lock);
     }
+    release(&p->lock);
+  }
+    
   }
 }
 
@@ -686,20 +695,50 @@ procdump(void)
 int getpinfo(struct pstat* i_node){
   struct proc* p;
   int counter=0;
-  for(p=proc;p<&proc[NPROC];p++){
-    i_node->pid[counter] = p->pid;
-    i_node->priority[counter] = p->priority;
-    i_node->state[counter] = p->state;
-    safestrcpy(i_node->name[counter],p->name,16);
-    for(int i=0;i<16;i++){
-      printf("%s",i_node->name[i][counter]);
-    }
-    printf("\n");
-    i_node->parent[counter] = p->parent;
-    i_node->size[counter] =p->sz;
-    counter++;
+  struct pstat* temporary = (struct pstat*)kalloc();  
+  if(temporary ==0){
+    printf("Failure allocating page\n");
+    return -1;
   }
-  if(counter<NPROC){
+
+
+  struct proc* parent;
+
+
+  for(p=proc;p<&proc[NPROC];p++){
+    acquire(&p->lock);
+    acquire(&wait_lock);
+    parent =p->parent;
+    if(parent != 0){
+      temporary->ppid[counter] = parent->pid;
+    }else{
+      temporary->ppid[counter] = -1;
+    }  
+    temporary->pid[counter] = p->pid;
+    temporary->priority[counter] = p->priority;
+    temporary->state[counter] = p->state;
+    for(int i=0;i<16;i++){
+        temporary->name[counter][i] = p->name[i];
+    }
+    temporary->size[counter] = p->sz;
+    release(&wait_lock);  
+    release(&p->lock);
+    counter++;  
+  }
+    int error;
+    error =copyout(myproc()->pagetable,(uint64)i_node,(char*)temporary,sizeof(struct pstat));    
+    if(error ==-1){
+      printf("Copyout error \n");
+      return error;
+    }
+    for(int i=0;i<NPROC;i++){
+      if(temporary->state[i]==0&&i!=0){
+        break;
+      }
+
+    }
+  kfree(temporary);
+  if(counter<=NPROC){
     return 0;
   }else{
     return -1;

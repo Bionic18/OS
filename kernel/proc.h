@@ -108,10 +108,10 @@ struct proc {
 };
 
 struct pstat {
-  enum procstate state[NPROC];
+  char name[NPROC][16];
   int pid[NPROC];
   uint64 priority[NPROC];
-  struct proc* parent[NPROC];
-  char name[16][NPROC];
   uint64 size[NPROC];
+  enum procstate state[NPROC];
+  int ppid[NPROC];
 };
