@@ -1,3 +1,4 @@
+//Added to support function of "ps" program. Same as the definitions in proc.h and param.h
 #define NPROC 64
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };

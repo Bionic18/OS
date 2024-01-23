@@ -79,8 +79,22 @@ argstr(int n, char *buf, int max)
   return fetchstr(addr, buf, max);
 }
 
-uint64 setpriority(uint64 num){
+  //  //  //  //
+  /*Kernel Code that implements the system call "setpriority"
+  Input:
+    Uint64 num: The priority to be set to the process that uses this system call
+
+  Output:
+    An interger of either 0 or -1, depending on if we fail or succeed. 
+  Error Cases:
+    The input number is smaller than 1 or bigger than 20
+  */
+  //  //  //  //
+int setpriority(uint64 num){
+
+  //check for input number within bounds
   if(num>=1 && num<=20){
+    //change currently running process priority to input number
     myproc()->priority = num;
     return 0;
   }else{
@@ -110,7 +124,7 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
-extern uint64 sys_setpriority(void);
+extern uint64 sys_setpriority(void); 
 extern uint64 sys_getpinfo(void);
 
 // An array mapping syscall numbers from syscall.h

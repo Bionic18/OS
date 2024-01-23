@@ -438,7 +438,8 @@ wait(uint64 addr)
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
-//  - choose a process to run.
+//  - Iterate through all processes and find the highest priority in a process.
+//  - choose a process to run with the found priority.
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
@@ -447,14 +448,13 @@ scheduler(void)
 {
   struct proc *p=proc;
   struct cpu *c = mycpu();
-  uint64 cand_priority =21;
-  
+  uint64 cand_priority =21; //initialize the priority as a value out of bounds so that it immediately changes by any process into the process priority value
   c->proc = 0;
   for(;;){
-    cand_priority=21;
+    cand_priority=21; //same as above, for every iteration, so that we don't start from a priority of eg.5 and move to 6, ignoring lower values
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
+    //iterate through the processes and find the highest priority. Acquire and release the process lock to make sure no race conflicts and other problems
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE && p->priority < cand_priority) {
@@ -462,9 +462,10 @@ scheduler(void)
       }
       release(&p->lock);
     }
-  for (p = proc; p < &proc[NPROC]; p++) {
-    acquire(&p->lock);
-    if (p->state == RUNNABLE && p->priority == cand_priority) {
+    //iterate through the processes and run the ones with the priority we decided on in the previous loop
+    for (p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE && p->priority == cand_priority) {
         // Switch to chosen process. It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
@@ -474,12 +475,11 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+      }
+      release(&p->lock);
     }
-    release(&p->lock);
   }
-    
-  }
-}
+} 
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -691,53 +691,68 @@ procdump(void)
     printf("\n");
   }
 }
+//  //  //  //
+/*Kernel function that implements system call getpinfo. Fills struct i_node with information about every process in the kernel.
 
+Input:
+pstat* i_node: Pointer to the pstat object the data is going to be stored into
+
+Output:
+0 or -1 depending on if there was an error or not.
+
+Possible Errors:
+-Failure to allocate needed page to store the i_node structure
+-Error while copying data from kernel space to user space with copyout function
+-The process loop ran more times than the processes there are. 
+*/
+//  //  //  //
 int getpinfo(struct pstat* i_node){
-  struct proc* p;
-  int counter=0;
+  struct proc* p;  //define a pointer to proc structure so that we can search through the available processes and store information for each one we examine
+  int counter=0;  //counter variable, used as index for the pstat members
+  //define and initialize a temporary pstat structure in the kernel space with size of one page. This will later be moved into user space and deleted from kernel space.
   struct pstat* temporary = (struct pstat*)kalloc();  
+  //check for errors allocating page 
   if(temporary ==0){
     printf("Failure allocating page\n");
     return -1;
   }
-
-
-  struct proc* parent;
-
-
+  struct proc* parent;   //helper proc struct to make finding the parent Pid easier
+  //main loop that runs through all processes  
   for(p=proc;p<&proc[NPROC];p++){
+    //acquire both locks for current process(p->lock) and its parent(wait_lock), to avoid race conditions and other problems
     acquire(&p->lock);
     acquire(&wait_lock);
+    //set parent variable as current process parent and save it's pid in the relevant field of the pstat structure. If a parent doesn't exist, fill the field with the value -1
     parent =p->parent;
     if(parent != 0){
       temporary->ppid[counter] = parent->pid;
     }else{
       temporary->ppid[counter] = -1;
     }  
+    //fill pid, priority,size and state fields in the pstat structure
     temporary->pid[counter] = p->pid;
     temporary->priority[counter] = p->priority;
     temporary->state[counter] = p->state;
+    temporary->size[counter] = p->sz;
+    //fill the name field of the pstat counter. A for loop is used to avoid errors, encountered by the usage of the processes memmove/strncpy/safestrncpy
     for(int i=0;i<16;i++){
         temporary->name[counter][i] = p->name[i];
     }
-    temporary->size[counter] = p->sz;
+    //release the acquired lockes for the current and parent process in the correct order.
     release(&wait_lock);  
     release(&p->lock);
-    counter++;  
+    counter++; //increase the counter to index the pstat structure correctly
   }
-    int error;
-    error =copyout(myproc()->pagetable,(uint64)i_node,(char*)temporary,sizeof(struct pstat));    
+    int error; //used to check for errors in the return values of the copyout function
+    //Copy the members of the pstat structure "temporary" in the kernel space to the address of "i_node" pstat structure in user space. Check for errors afterwards.
+    error =copyout(myproc()->pagetable,(uint64)i_node,(char*)temporary,sizeof(struct pstat));
     if(error ==-1){
       printf("Copyout error \n");
       return error;
     }
-    for(int i=0;i<NPROC;i++){
-      if(temporary->state[i]==0&&i!=0){
-        break;
-      }
-
-    }
+  //free the page allocated for kernel space pstat structure "temporary"
   kfree(temporary);
+  //check if the main loop ran more times than the number of processes. Return -1 if it did.
   if(counter<=NPROC){
     return 0;
   }else{

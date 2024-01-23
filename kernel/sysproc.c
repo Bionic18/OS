@@ -91,13 +91,37 @@ sys_uptime(void)
 }
 
 uint64 sys_setpriority(void){
+    //  //  //  //
+    /*Code of system call "setpriority" Calls and is implemented by kernel function setpriority
+
+    Input:
+    Uint64 temp: The priority number to be set to the priority that calls this system call.
+
+    Output:
+    Returns an interger, 0 if everything is fine, -1 if there is an error. Further explained in setpriority
+    */
+    //  //  //  //
+  //define and get the input priority
   uint64 temp;
   argaddr(0, &temp);
+  //call kernel function setpriority that does the work, and return its value
   return setpriority(temp);
 }
 
 uint sys_getpinfo(void){
+    //  //  //  //
+    /*Code of system call "getpinfo". Calls and is implemented by kernel function getpinfo
+
+    Input:
+    pstat* input: A pointer to a pstat structure. Defined in proc.h
+
+    Output: Interger of either 0 or -1 ,depending on if there was an error or not.
+    
+    */
+    //  //  //  //
+  //define and get input pstat struct
   struct pstat* input;
   argaddr(0,(uint64*)&input); //hodge-podge. we'll see if it works lol
+  //call kernel process getpinfo that implements the system call and return its value
   return getpinfo(input);
 }

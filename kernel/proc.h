@@ -107,6 +107,9 @@ struct proc {
   char name[16];               // Process name (debugging)
 };
 
+
+//new structure that selects a few elements of struct proc. Used in getpinfo system call. 
+//Data is stored into arrays with size NPROC(maximum number of processes). List implementation is unneeded, since the space used can fit in a page.
 struct pstat {
   char name[NPROC][16];
   int pid[NPROC];
